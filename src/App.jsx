@@ -1,5 +1,12 @@
 import { useState, useRef } from 'react'
 import './App.css'
+import * as pdfjsLib from 'pdfjs-dist'
+
+// Point the worker at the bundled worker file
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).toString()
 
 function App() {
   const [file, setFile] = useState(null)
@@ -35,11 +42,34 @@ function App() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  const handleMakeQuiz = () => {
+  const handleMakeQuiz = async () => {
     if (!file) return
     setIsLoading(true)
-    // Placeholder: quiz generation logic goes here
-    setTimeout(() => setIsLoading(false), 2000)
+
+    try {
+      // Read the file as an ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer()
+
+      // Load the PDF document
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+      console.log(`PDF loaded — ${pdf.numPages} page(s) found.`)
+
+      let fullText = ''
+
+      // Extract text from every page
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum)
+        const textContent = await page.getTextContent()
+        const pageText = textContent.items.map((item) => item.str).join(' ')
+        fullText += `\n--- Page ${pageNum} ---\n${pageText}`
+      }
+
+      console.log('Extracted PDF text:\n', fullText)
+    } catch (err) {
+      console.error('Failed to read PDF:', err)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
