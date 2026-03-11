@@ -1,12 +1,59 @@
 import { useState, useRef } from 'react'
 import './App.css'
 import * as pdfjsLib from 'pdfjs-dist'
+import mammoth from 'mammoth'
+import JSZip from 'jszip'
 
-// Point the worker at the bundled worker file
+// Point the PDF.js worker at the bundled worker file
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
   import.meta.url
 ).toString()
+
+const ACCEPTED_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+]
+const ACCEPTED_EXTENSIONS = '.pdf,.docx,.pptx'
+
+// --- Extractors ---
+
+async function extractPdfText(arrayBuffer) {
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+  console.log(`PDF loaded — ${pdf.numPages} page(s) found.`)
+  let text = ''
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i)
+    const content = await page.getTextContent()
+    text += `\n--- Page ${i} ---\n` + content.items.map((item) => item.str).join(' ')
+  }
+  return text
+}
+
+async function extractDocxText(arrayBuffer) {
+  const result = await mammoth.extractRawText({ arrayBuffer })
+  return result.value
+}
+
+async function extractPptxText(arrayBuffer) {
+  const zip = await JSZip.loadAsync(arrayBuffer)
+  // Slides live at ppt/slides/slide*.xml
+  const slideFiles = Object.keys(zip.files)
+    .filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
+    .sort() // ensure slide order
+
+  let text = ''
+  for (const slideName of slideFiles) {
+    const xml = await zip.files[slideName].async('string')
+    // Extract text from <a:t> elements
+    const matches = [...xml.matchAll(/<a:t[^>]*>([^<]*)<\/a:t>/g)]
+    const slideText = matches.map((m) => m[1]).join(' ')
+    const slideNum = slideName.match(/slide(\d+)/)[1]
+    text += `\n--- Slide ${slideNum} ---\n${slideText}`
+  }
+  return text
+}
 
 function App() {
   const [file, setFile] = useState(null)
@@ -16,7 +63,7 @@ function App() {
 
   const handleFileChange = (e) => {
     const selected = e.target.files[0]
-    if (selected && selected.type === 'application/pdf') {
+    if (selected && ACCEPTED_TYPES.includes(selected.type)) {
       setFile(selected)
     }
   }
@@ -32,7 +79,7 @@ function App() {
     e.preventDefault()
     setIsDragging(false)
     const dropped = e.dataTransfer.files[0]
-    if (dropped && dropped.type === 'application/pdf') {
+    if (dropped && ACCEPTED_TYPES.includes(dropped.type)) {
       setFile(dropped)
     }
   }
@@ -47,26 +94,21 @@ function App() {
     setIsLoading(true)
 
     try {
-      // Read the file as an ArrayBuffer
       const arrayBuffer = await file.arrayBuffer()
-
-      // Load the PDF document
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
-      console.log(`PDF loaded — ${pdf.numPages} page(s) found.`)
-
       let fullText = ''
 
-      // Extract text from every page
-      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        const page = await pdf.getPage(pageNum)
-        const textContent = await page.getTextContent()
-        const pageText = textContent.items.map((item) => item.str).join(' ')
-        fullText += `\n--- Page ${pageNum} ---\n${pageText}`
+      if (file.type === 'application/pdf') {
+        fullText = await extractPdfText(arrayBuffer)
+        console.log('Extracted PDF text:\n', fullText)
+      } else if (file.name.endsWith('.docx')) {
+        fullText = await extractDocxText(arrayBuffer)
+        console.log('Extracted DOCX text:\n', fullText)
+      } else if (file.name.endsWith('.pptx')) {
+        fullText = await extractPptxText(arrayBuffer)
+        console.log('Extracted PPTX text:\n', fullText)
       }
-
-      console.log('Extracted PDF text:\n', fullText)
     } catch (err) {
-      console.error('Failed to read PDF:', err)
+      console.error('Failed to extract text:', err)
     } finally {
       setIsLoading(false)
     }
@@ -103,10 +145,10 @@ function App() {
           id="pdf-upload"
           ref={fileInputRef}
           type="file"
-          accept=".pdf,application/pdf"
+          accept={ACCEPTED_EXTENSIONS}
           className="file-input"
           onChange={handleFileChange}
-          aria-label="Upload PDF file"
+          aria-label="Upload file"
         />
 
         {file ? (
@@ -117,7 +159,7 @@ function App() {
                 <path d="M14 2v6h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
                 <path d="M9 13h6M9 17h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
               </svg>
-              <span className="pdf-badge">PDF</span>
+              <span className="pdf-badge">{file.name.split('.').pop().toUpperCase()}</span>
             </div>
             <div className="file-info">
               <span className="file-name">{file.name}</span>
@@ -141,9 +183,9 @@ function App() {
                 <path d="M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <p className="upload-main">Drop your PDF here</p>
+            <p className="upload-main">Drop your file here</p>
             <p className="upload-hint">or <span className="upload-link">browse to upload</span></p>
-            <p className="upload-formats">Accepts PDF files only</p>
+            <p className="upload-formats">Accepts PDF, DOCX, and PPTX files</p>
           </div>
         )}
       </div>
