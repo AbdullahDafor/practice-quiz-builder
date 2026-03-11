@@ -3,6 +3,7 @@ import './App.css'
 import * as pdfjsLib from 'pdfjs-dist'
 import mammoth from 'mammoth'
 import JSZip from 'jszip'
+import { generateQuiz } from './ai'
 
 // Point the PDF.js worker at the bundled worker file
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -98,20 +99,23 @@ function App() {
       const arrayBuffer = await file.arrayBuffer()
       let fullText = ''
 
-      console.log(`Generating ${questionCount} questions...`)
-
+      // Step 1 — Extract text from the uploaded file
       if (file.type === 'application/pdf') {
         fullText = await extractPdfText(arrayBuffer)
-        console.log('Extracted PDF text:\n', fullText)
       } else if (file.name.endsWith('.docx')) {
         fullText = await extractDocxText(arrayBuffer)
-        console.log('Extracted DOCX text:\n', fullText)
       } else if (file.name.endsWith('.pptx')) {
         fullText = await extractPptxText(arrayBuffer)
-        console.log('Extracted PPTX text:\n', fullText)
       }
+
+      console.log(`✅ Text extracted (${fullText.length} chars). Sending to AI…`)
+
+      // Step 2 — Send extracted text to Gemini and ask for a quiz
+      const quizText = await generateQuiz(fullText, questionCount)
+
+      console.log('🎉 AI Quiz Response:\n', quizText)
     } catch (err) {
-      console.error('Failed to extract text:', err)
+      console.error('❌ Error:', err)
     } finally {
       setIsLoading(false)
     }
