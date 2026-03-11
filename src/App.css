@@ -192,7 +192,86 @@
   color: #ef4444;
 }
 
+/* Question count */
+.question-count-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.question-count-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.question-count-control {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  width: fit-content;
+}
+
+.count-btn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: #f3f4f6;
+  color: var(--text);
+  font-size: 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition), color var(--transition);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.count-btn:hover:not(:disabled) {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.count-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.count-input {
+  width: 64px;
+  height: 44px;
+  border: none;
+  border-left: 1.5px solid var(--border);
+  border-right: 1.5px solid var(--border);
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--text);
+  background: white;
+  outline: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.count-input::-webkit-inner-spin-button,
+.count-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+.question-count-hint {
+  font-size: 0.78rem;
+  color: #9ca3af;
+}
+
 /* Make Quiz button */
+
 .make-quiz-btn {
   width: 100%;
   padding: 15px;

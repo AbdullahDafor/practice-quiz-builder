@@ -59,6 +59,7 @@ function App() {
   const [file, setFile] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [questionCount, setQuestionCount] = useState(10)
   const fileInputRef = useRef(null)
 
   const handleFileChange = (e) => {
@@ -96,6 +97,8 @@ function App() {
     try {
       const arrayBuffer = await file.arrayBuffer()
       let fullText = ''
+
+      console.log(`Generating ${questionCount} questions...`)
 
       if (file.type === 'application/pdf') {
         fullText = await extractPdfText(arrayBuffer)
@@ -188,6 +191,41 @@ function App() {
             <p className="upload-formats">Accepts PDF, DOCX, and PPTX files</p>
           </div>
         )}
+      </div>
+
+      {/* Question count */}
+      <div className="question-count-section">
+        <label className="question-count-label" htmlFor="question-count">
+          Number of Questions
+        </label>
+        <div className="question-count-control">
+          <button
+            className="count-btn"
+            onClick={() => setQuestionCount((n) => Math.max(1, n - 1))}
+            aria-label="Decrease question count"
+            disabled={questionCount <= 1}
+          >−</button>
+          <input
+            id="question-count"
+            type="number"
+            className="count-input"
+            value={questionCount}
+            min={1}
+            max={50}
+            onChange={(e) => {
+              const val = Math.min(50, Math.max(1, Number(e.target.value)))
+              setQuestionCount(val)
+            }}
+            aria-label="Number of questions"
+          />
+          <button
+            className="count-btn"
+            onClick={() => setQuestionCount((n) => Math.min(50, n + 1))}
+            aria-label="Increase question count"
+            disabled={questionCount >= 50}
+          >+</button>
+        </div>
+        <p className="question-count-hint">Between 1 and 50 questions</p>
       </div>
 
       {/* Action button */}
